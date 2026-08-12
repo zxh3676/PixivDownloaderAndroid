@@ -9,10 +9,12 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -26,7 +28,14 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties','**/*.gradle*') }}
+
+      - name: Install Android SDK (platform & build-tools)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          build-tools: "33.0.2"
+          components: platform-tools
 
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
