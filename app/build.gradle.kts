@@ -18,10 +18,14 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+            val ksPath: String? = (findProperty("keystorePath") as String?) ?: System.getenv("KEYSTORE_PATH")
+            val ksPassword: String? = (findProperty("keystorePassword") as String?) ?: System.getenv("KEYSTORE_PASSWORD")
+            val kAlias: String? = (findProperty("keyAlias") as String?) ?: System.getenv("KEY_ALIAS")
+            val kPassword: String? = (findProperty("keyPassword") as String?) ?: System.getenv("KEY_PASSWORD")
+            if (ksPath != null) storeFile = file(ksPath)
+            if (ksPassword != null) storePassword = ksPassword
+            if (kAlias != null) keyAlias = kAlias
+            if (kPassword != null) keyPassword = kPassword
         }
     }
 

@@ -1,8 +1,10 @@
 # Pixiv Downloader (Android)
 
-[English](README.md) | [中文](README_zh.md)
+English | [中文](README_zh.md)
 
 Android image downloader that connects directly to Pixiv using SNI bypass technology. No proxy required.
+
+![](screenshots/IMG_20260812_161045.jpg)
 
 ## Features
 

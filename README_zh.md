@@ -1,8 +1,10 @@
 # Pixiv 下载器 (Android)
 
-[English](README.md) | [中文](README_zh.md)
+[English](README.md) | 中文
 
 基于 SNI 绕过技术直连 Pixiv 的 Android 图片下载器。无需代理。
+
+![](screenshots/IMG_20260812_161045.jpg)
 
 ## 功能
 
