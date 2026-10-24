@@ -58,6 +58,17 @@ android {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
 
+    // ABI 拆分: 每个 ABI 一个 APK（安装时只需对应架构的那个）,
+    // 另产出 universal 全架构包。体积敏感: 单 ABI APK 不携带其他 .so。
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

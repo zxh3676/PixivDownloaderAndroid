@@ -10,6 +10,9 @@ import javax.net.ssl.SSLSocket
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
+/** ECH/回退相关日志标签 */
+
+
 /**
  * 无 SNI 的裸 HTTP/1.1 客户端。
  *
@@ -17,6 +20,12 @@ import javax.net.ssl.X509TrustManager
  * 1. 直接用 IP 建立 TCP 连接（跳过 DNS 污染）
  * 2. SSLSocket 在无参创建时不设置 server_name → TLS 握手无 SNI 扩展
  * 3. 发送裸 HTTP/1.1 请求，靠 Host 头让服务器路由
+ *
+ * 2026-10 变更：pixiv 已将 www/API 迁至 Cloudflare 并在源站拒绝"无 SNI 直连"
+ * (403)，而 GFW 重置一切携带 pixiv/pximg SNI 的 TLS 连接。因此
+ * www.pixiv.net 的 API 请求改走 ECH 直连（EchClient，外层 SNI 是
+ * cloudflare-ech.com，真实域名加密于内层）；图片域名 i.pximg.net 的
+ * 无 SNI 直连不受影响，仍走本类原有路径。
  *
  * 参照：SNI_BYPASS_ANDROID.md
  */
@@ -49,6 +58,36 @@ class SniBypassClient {
         extraHeaders: Map<String, String> = emptyMap(),
         requestBody: ByteArray? = null
     ): FetchResult {
+        // www.pixiv.net 的 API 已无法无 SNI 直连（403），改走 ECH 直连；
+        // ECH 不可用（.so 缺失/加载失败）时回退旧路径并得到明确错误
+        if (host == "www.pixiv.net" && method == "GET" && requestBody == null &&
+            EchClient.available
+        ) {
+            try {
+                // Cloudflare 会向缺少浏览器特征（尤其无 User-Agent）的请求弹出
+                // "Just a moment" 质询页（403），必须携带与旧直连路径一致的请求头
+                val hdrs = buildMap {
+                    put("User-Agent", API_USER_AGENT)
+                    put("Accept", "application/json, text/plain, */*")
+                    put("Accept-Language", "zh-CN,zh;q=0.9")
+                    put("Referer", "https://www.pixiv.net/")
+                    putAll(extraHeaders)
+                }
+                var r = EchClient.request("https://$host$path", hdrs)
+                if (r.statusCode == 401 && !EchClient.cookieBad &&
+                    extraHeaders.keys.any { it.equals("Cookie", ignoreCase = true) }
+                ) {
+                    // 失效的 PHPSESSID 会导致 401（pixiv 不再静默忽略），匿名重试
+                    EchLog.i("Cookie 被服务端拒绝，本次起改用匿名请求")
+                    EchClient.cookieBad = true
+                    r = EchClient.request("https://$host$path", hdrs)
+                }
+                return r
+            } catch (e: Exception) {
+                EchLog.w("ECH 直连失败，回退旧直连: ${e.message}")
+            }
+        }
+
         val ip = hostIpMap[host] ?: throw IllegalArgumentException("未知域名: $host")
         var lastException: Exception? = null
 
@@ -122,7 +161,7 @@ class SniBypassClient {
         val sb = StringBuilder()
         sb.append("$method $path HTTP/1.1\r\n")
         sb.append("Host: $host\r\n")
-        sb.append("User-Agent: Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36\r\n")
+        sb.append("User-Agent: $API_USER_AGENT\r\n")
         // 图片用通用 Accept，API 用 JSON
         if (host == "i.pximg.net" || host == "s.pximg.net") {
             sb.append("Accept: image/webp,image/apng,image/*,*/*;q=0.8\r\n")
