@@ -29,13 +29,16 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties','**/*.gradle*') }}
+          restore-keys: ${{ runner.os }}-gradle-
 
-      - name: Install Android SDK (platform & build-tools)
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 33
-          build-tools: "33.0.2"
-          components: platform-tools
-
-      - name: Build debug APK
+      # 构建机预装 Android SDK 且许可证已接受，
+      # 缺失的 platform / build-tools 由 Gradle 按需自动下载
+      - name: Build debug APKs
         run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload debug APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apks
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
